@@ -1,0 +1,26 @@
+include "base/Position.fbs";
+include "base/SearchDir.fbs";
+
+namespace motis.openrouteservice;
+
+// JSON Example:
+// --
+// {
+//   "destination": {
+//     "type": "Module",
+//     "target": "/openrouteservice/one_to_many"
+//   },
+//   "content_type": "ORSOneToManyRequest",
+//   "content": {
+//     "profile": "drdiving-car",
+//     "metrics": ["distance","duration"],
+//     "sources": [0],
+//     "locations": [[9.70093,48.477473],[9.207916,49.153868],[37.573242,55.801281],[115.663757,38.106467]]
+//   }
+// }
+table ORSOneToManyRequest {
+  profile: string;
+  metrics: [string];
+  sources : [int];
+  locations : [motis.ReversePosition];
+}
