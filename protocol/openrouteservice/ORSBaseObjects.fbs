@@ -1,0 +1,17 @@
+include "base/Position.fbs";
+
+namespace motis.openrouteservice;
+
+
+table Duration {
+    values: [double];
+}
+
+table Distance {
+    values: [double];
+}
+
+struct LocationSnap {
+    location: motis.ReversePosition;
+    snapped_distance: double;
+}

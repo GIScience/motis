@@ -21,6 +21,6 @@ namespace motis.openrouteservice;
 table ORSOneToManyRequest {
   profile: string;
   metrics: [string];
-  sources : [int];
+  sources : [uint];
   locations : [motis.ReversePosition];
 }
