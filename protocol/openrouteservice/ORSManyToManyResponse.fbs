@@ -1,0 +1,22 @@
+include "base/Position.fbs";
+namespace motis.openrouteservice;
+
+struct Duration {
+    values: [float];
+}
+
+struct Distance {
+    values: [float];
+}
+
+struct LocationSnap {
+    location: motis.ReversePosition;
+    snapped_distance: float;
+}
+
+table OSRManyToManyResponse {
+  durations: [Duration];
+  distances: [Distance];
+  destinations: [LocationSnap];
+  sources: [LocationSnap];
+}
