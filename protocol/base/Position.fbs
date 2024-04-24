@@ -4,8 +4,3 @@ struct Position {
   lat: double;
   lng: double;
 }
-
-struct ReversePosition {
-  lng: double;
-  lat: double;
-}

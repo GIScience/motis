@@ -1,11 +1,10 @@
-include "base/Position.fbs";
 include "openrouteservice/ORSBaseObjects.fbs";
 
 namespace motis.openrouteservice;
 
 table OSRMOneToManyResponse {
-  durations: [motis.openrouteservice.Duration];
-  distances: [motis.openrouteservice.Distance];
-  destinations: [motis.openrouteservice.LocationSnap];
-  sources: [motis.openrouteservice.LocationSnap];
+  durations: [Duration];
+  distances: [Distance];
+  destinations: [LocationSnap];
+  sources: [LocationSnap];
 }

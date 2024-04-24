@@ -1,5 +1,4 @@
-include "base/Position.fbs";
-include "base/SearchDir.fbs";
+include "openrouteservice/ORSBaseObjects.fbs";
 
 namespace motis.openrouteservice;
 
@@ -20,5 +19,5 @@ namespace motis.openrouteservice;
 table ORSManyToManyRequest {
   profile: string;
   metrics: [string];
-  locations : [motis.ReversePosition];
+  locations : [ReversePosition];
 }
