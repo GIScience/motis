@@ -37,7 +37,7 @@
     },
     {
       "name": "macos-arm64",
-      "displayName": "MacOS x86_64 NO-AVX2 Release",
+      "displayName": "MacOS arm64 Release",
       "generator": "Ninja",
       "binaryDir": "${sourceDir}/build/macos-arm64-release",
       "cacheVariables": {
@@ -46,6 +46,23 @@
         "BOOST_CONTEXT_ARCHITECTURE": "arm64",
         "BOOST_CONTEXT_ABI": "aapcs",
         "CMAKE_BUILD_TYPE": "Release",
+        "MOTIS_WITH_WEBUI": "ON",
+        "MOTIS_AVX": "OFF",
+        "MOTIS_AVX2": "OFF"
+      }
+    },
+    {
+      "name": "macos-arm64-debug",
+      "displayName": "MacOS arm64 Debug",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/macos-arm64-debug",
+      "cacheVariables": {
+        "CMAKE_OSX_ARCHITECTURES": "arm64",
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_C_FLAGS": " -fno-omit-frame-pointer",
+        "CMAKE_CXX_FLAGS": "-stdlib=libc++ -fno-omit-frame-pointer",
+        "BOOST_CONTEXT_ARCHITECTURE": "arm64",
+        "BOOST_CONTEXT_ABI": "aapcs",
         "MOTIS_WITH_WEBUI": "ON",
         "MOTIS_AVX": "OFF",
         "MOTIS_AVX2": "OFF"
