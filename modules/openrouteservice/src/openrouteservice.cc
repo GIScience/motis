@@ -5,8 +5,6 @@
 
 #include "motis/core/common/logging.h"
 #include "motis/module/event_collector.h"
-#include "motis/openrouteservice/error.h"
-#include "motis/openrouteservice/router.h"
 
 namespace mm = motis::module;
 namespace fs = std::filesystem;

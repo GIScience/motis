@@ -37,7 +37,6 @@ private:
   std::string api_key_;
 
   std::vector<std::string> profiles_;
-  std::map<std::string, std::unique_ptr<router>> routers_;
 };
 
 }  // namespace motis::openrouteservice
