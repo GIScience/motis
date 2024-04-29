@@ -6,6 +6,9 @@
 #include "motis/core/common/logging.h"
 #include "motis/module/event_collector.h"
 
+#include <rapidjson/document.h>
+#include "motis/module/context/motis_http_req.h"
+
 namespace mm = motis::module;
 namespace fs = std::filesystem;
 namespace o = motis::openrouteservice;
@@ -17,6 +20,7 @@ namespace motis::openrouteservice {
 openrouteservice::openrouteservice()
     : module("Openrouteservice Options", "openrouteservice") {
   param(url_, "url", "ORS API endpoint");
+  param(api_key_, "api_key", "ORS API key");
 }
 
 openrouteservice::~openrouteservice() = default;
@@ -31,6 +35,8 @@ void openrouteservice::init(motis::module::registry& reg) {
                   [&](mm::msg_ptr const& msg) { return table(msg); }, {});
 
   reg.register_op("/osrm/one_to_many", [&](mm::msg_ptr const& msg) { return one_to_many(msg); }, {});
+
+  reg.register_op("/osrm/via", [&](mm::msg_ptr const& msg) { return via(msg); }, {});
 }
 
 template <typename Req>
@@ -93,6 +99,36 @@ std::string_view translate_mode(std::string_view s) {
     case cista::hash("car"): return "driving-car";
     default: return "foot-walking";
   }
+}
+
+mm::msg_ptr openrouteservice::via(mm::msg_ptr const& msg) const {
+  using osrm::OSRMViaRouteRequest;
+  auto const req = motis_content(OSRMViaRouteRequest, msg);
+
+  auto const size = req->waypoints()->size();
+  auto const waypoints = *req->waypoints();
+  auto const start_lng = req->waypoints()->Get(0)->lng();
+  auto const start_lat = req->waypoints()->Get(0)->lat();
+  auto const end_lng = req->waypoints()->Get(size-1)->lng();
+  auto const end_lat = req->waypoints()->Get(size-1)->lat();
+
+  auto const mode_str = (std::string) translate_mode(req->profile()->view());
+
+  auto const query =
+      url_ + "/directions/" + mode_str +
+      "?api_key=" + api_key_ +
+      "&start=" + std::to_string(start_lng) + ',' + std::to_string(start_lat) +
+      "&end=" + std::to_string(end_lng) + ',' + std::to_string(end_lat);
+
+  auto f = motis_http(query);
+  auto v = f->val();
+  std::cout << "ORS reply " << v.body;
+
+  mm::message_creator fbb;
+
+  //TODO: fbb.create_and_finish
+
+  return make_msg(fbb);
 }
 
 }  // namespace motis::openrouteservice

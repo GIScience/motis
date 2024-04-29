@@ -19,6 +19,8 @@ public:
 
   motis::module::msg_ptr one_to_many(motis::module::msg_ptr const&) const;
 
+  motis::module::msg_ptr via(motis::module::msg_ptr const&) const;
+
   // create a struct that holds the url and api key
   struct impl {
     explicit impl(std::string const& url, std::string const& api_key)
