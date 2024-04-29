@@ -29,6 +29,15 @@ void openrouteservice::init(motis::module::registry& reg) {
   //  reg.subscribe("/init", [this] { init_async(); }, {});
   reg.register_op("/osrm/table",
                   [&](mm::msg_ptr const& msg) { return table(msg); }, {});
+
+  reg.register_op("/osrm/one_to_many", [&](mm::msg_ptr const& msg) { return one_to_many(msg); }, {});
+}
+
+mm::msg_ptr openrouteservice::one_to_many(mm::msg_ptr const& msg) const {
+  using osrm::OSRMOneToManyRequest;
+  auto const req = motis_content(OSRMOneToManyRequest, msg);
+  //TODO Encode message as ORS query, send to the API, and decode the result
+  return mm::msg_ptr();
 }
 
 std::string_view translate_mode(std::string_view s) {
