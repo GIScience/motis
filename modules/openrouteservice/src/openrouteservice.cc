@@ -30,31 +30,7 @@ void openrouteservice::init(motis::module::registry& reg) {
   config = std::make_unique<impl>(url_, api_key_);
   //  reg.subscribe("/init", [this] { init_async(); }, {});
   reg.register_op("/osrm/table",
-                  [this](msg_ptr const& msg) {
-                    auto const req = motis_content(OSRMManyToManyRequest, msg);
-                    return get_router(req->profile()->str())->table(req);
-                  },
-                  {});
-  reg.register_op("/osrm/one_to_many",
-                  [this](msg_ptr const& msg) {
-                    auto const req = motis_content(OSRMOneToManyRequest, msg);
-                    return get_router(req->profile()->str())->one_to_many(req);
-                  },
-                  {});
-  reg.register_op("/osrm/via",
-                  [this](msg_ptr const& msg) {
-                    auto const req = motis_content(OSRMViaRouteRequest, msg);
-                    return get_router(req->profile()->str())->via(req);
-                  },
-                  {});
-  reg.register_op("/osrm/smooth_via",
-                  [this](msg_ptr const& msg) {
-                    auto const req =
-                        motis_content(OSRMSmoothViaRouteRequest, msg);
-                    return get_router(req->profile()->str())->smooth_via(req);
-                  },
-                  {});
-                  */
+                  [&](mm::msg_ptr const& msg) { return table(msg); }, {});
 }
 
 std::string_view translate_mode(std::string_view s) {
