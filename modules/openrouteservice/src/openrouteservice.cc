@@ -40,41 +40,37 @@ void openrouteservice::init(motis::module::registry& reg) {
 template <typename Req>
 mm::msg_ptr sources_to_targets(Req const* req, openrouteservice::impl* config) {
   auto const timer = motis::logging::scoped_timer{"openrouteservice.matrix"};
-//  auto& thor = config->get();
-//
-//  // Encode OSRMManyToManyRequest as valhalla request.
-//  auto doc = j::Document{};
-//  encode_request(req, doc);
-//
-//  // Decode request.
-//  v::Api request;
-//  v::from_json(doc, v::Options::sources_to_targets, request);
-//  auto& options = *request.mutable_options();
-//
-//  // Get the costing method.
-//  auto mode = v::sif::TravelMode::kMaxTravelMode;
-//  auto const mode_costing = thor.factory_.CreateModeCosting(options, mode);
-//
-//  // Find path locations (loki) for sources and targets.
-//  thor.loki_worker_.matrix(request);
-//
-//  // Run matrix algorithm.
-//  auto const res = thor.matrix_.SourceToTarget(
-//      options.sources(), options.targets(), *config->reader_, mode_costing,
-//      mode, 4000000.0F);
-//  thor.matrix_.clear();
-//
-//  // Encode OSRM response.
+  //  auto& thor = config->get();
+  //
+  //  // Encode OSRMManyToManyRequest as valhalla request.
+  //  auto doc = j::Document{};
+  //  encode_request(req, doc);
+  //
+  //  // Decode request.
+  //  v::Api request;
+  //  v::from_json(doc, v::Options::sources_to_targets, request);
+  //  auto& options = *request.mutable_options();
+  //
+  //  // Get the costing method.
+  //  auto mode = v::sif::TravelMode::kMaxTravelMode;
+  //  auto const mode_costing = thor.factory_.CreateModeCosting(options, mode);
+  //
+  //  // Find path locations (loki) for sources and targets.
+  //  thor.loki_worker_.matrix(request);
+  //
+  //  // Run matrix algorithm.
+  //  auto const res = thor.matrix_.SourceToTarget(
+  //      options.sources(), options.targets(), *config->reader_, mode_costing,
+  //      mode, 4000000.0F);
+  //  thor.matrix_.clear();
+  //
+  //  // Encode OSRM response.
   mm::message_creator fbb;
-//  fbb.create_and_finish(
-//      MsgContent_OSRMOneToManyResponse,
-//      CreateOSRMOneToManyResponse(fbb, fbb.CreateVectorOfStructs(utl::to_vec(
-//                                           res,
-//                                           [](v::thor::TimeDistance const& td) {
-//                                             return motis::osrm::Cost{
-//                                                 td.time / 60.0, 1.0 * td.dist};
-//                                           })))
-//          .Union());
+  fbb.create_and_finish(
+      MsgContent_OSRMOneToManyResponse,
+      CreateOSRMOneToManyResponse(
+          fbb, fbb.CreateVectorOfStructs(std::vector<osrm::Cost>{}))
+          .Union());
   return make_msg(fbb);
 }
 

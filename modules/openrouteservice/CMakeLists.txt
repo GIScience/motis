@@ -12,4 +12,5 @@ target_link_libraries(motis-openrouteservice
   motis-core
   motis-module
 )
+add_subdirectory(test)
 target_compile_options(motis-openrouteservice PRIVATE ${MOTIS_CXX_FLAGS})
