@@ -150,11 +150,6 @@ include "paxforecast/PaxForecastApplyMeasuresRequest.fbs";
 include "paxforecast/PaxForecastApplyMeasuresResponse.fbs";
 include "paxforecast/PaxForecastMetricsRequest.fbs";
 include "paxforecast/PaxForecastMetricsResponse.fbs";
-include "openrouteservice/ORSBaseObjects.fbs";
-include "openrouteservice/ORSManyToManyRequest.fbs";
-include "openrouteservice/ORSManyToManyResponse.fbs";
-include "openrouteservice/ORSOneToManyRequest.fbs";
-include "openrouteservice/ORSOneToManyResponse.fbs";
 
 include "HTTPMessage.fbs";
 
