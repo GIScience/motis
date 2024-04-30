@@ -7,13 +7,11 @@
 #include "motis/module/event_collector.h"
 
 #include <rapidjson/document.h>
+#include <rapidjson/error/en.h>
 #include "motis/module/context/motis_http_req.h"
 
 namespace mm = motis::module;
 namespace fs = std::filesystem;
-namespace o = motis::openrouteservice;
-
-namespace mm = motis::module;
 
 namespace motis::openrouteservice {
 
@@ -122,12 +120,38 @@ mm::msg_ptr openrouteservice::via(mm::msg_ptr const& msg) const {
 
   auto f = motis_http(query);
   auto v = f->val();
-  std::cout << "ORS reply " << v.body;
+  std::cout << "ORS reply: " << v.body;
 
+  rapidjson::Document doc;
+  if (doc.Parse(v.body.data(), v.body.size()).HasParseError()) {
+    doc.GetParseError();
+    throw utl::fail("ORS response: Bad JSON: {} at offset {}",
+                    rapidjson::GetParseError_En(doc.GetParseError()),
+                    doc.GetErrorOffset());
+  }
+  const rapidjson::Value& feature = doc["features"][0];
+
+  // Get totals
+  const rapidjson::Value& summary = feature["properties"]["summary"];
+  double duration = summary["duration"].GetDouble();
+  double distance = summary["distance"].GetDouble();
+
+  // Extract route geometry
+  std::vector<double> coordinates;
+  for (const rapidjson::Value& coordinate_pair : feature["geometry"]["coordinates"].GetArray()) {
+    coordinates.emplace_back(coordinate_pair[1].GetDouble());
+    coordinates.emplace_back(coordinate_pair[0].GetDouble());
+  }
+
+  // Encode OSRM response
   mm::message_creator fbb;
-
-  //TODO: fbb.create_and_finish
-
+  fbb.create_and_finish(
+      MsgContent_OSRMViaRouteResponse,
+      osrm::CreateOSRMViaRouteResponse(
+          fbb, static_cast<int>(duration),
+          static_cast<double>(distance),
+          CreatePolyline(fbb, fbb.CreateVector(coordinates.data(), coordinates.size())))
+          .Union());
   return make_msg(fbb);
 }
 
