@@ -138,12 +138,22 @@ mm::msg_ptr sources_to_targets(Req const* req, openrouteservice::impl* config) {
 
   // Extract distances and durations
   std::vector<double> distances;
-  for (const rapidjson::Value& distance : doc["distances"][0].GetArray()) {
-    distances.emplace_back(distance.GetDouble());
-  }
   std::vector<double> durations;
-  for (const rapidjson::Value& duration : doc["durations"][0].GetArray()) {
-    durations.emplace_back(duration.GetDouble());
+  if (doc["distances"].Size() == doc["durations"].Size()) {
+    for (rj::SizeType i = 0; i < doc["distances"].Size(); i++) {
+      if (doc["distances"][i].Size() == doc["durations"][i].Size()) {
+        for (const rj::Value& distance : doc["distances"][i].GetArray()) {
+          distances.emplace_back(distance.GetDouble());
+        }
+        for (const rj::Value& duration : doc["durations"][i].GetArray()) {
+          durations.emplace_back(duration.GetDouble());
+        }
+      } else {
+        throw utl::fail("Dimensions of distance/duration matrices don't match");
+      }
+    }
+  } else {
+    throw utl::fail("Dimensions of distance/duration matrices don't match");
   }
 
   // Encode OSRM response.
