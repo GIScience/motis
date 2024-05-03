@@ -51,11 +51,20 @@ std::string_view translate_mode(std::string_view s) {
   }
 }
 
+std::string json_to_string(rj::Document& doc) {
+  rj::StringBuffer buffer;
+  rj::Writer<rj::StringBuffer> writer(buffer);
+  // Traverse the DOM and generates Handler events
+  doc.Accept(writer);
+
+  return {buffer.GetString(), buffer.GetSize()};
+}
+
 rj::Value encode_position(Position const* to, rj::Document& doc) {
   auto coord = rj::Value{rj::kArrayType};
   rj::Document::AllocatorType& allocator = doc.GetAllocator();
 
-  coord.PushBack(to->lng(), allocator);
+  coord.PushBack(rj::Value{to->lng()}, allocator);
   coord.PushBack(rj::Value{to->lat()}, allocator);
 
   return coord;
@@ -87,34 +96,14 @@ std::string encode_body(osrm::OSRMOneToManyRequest const* req) {
   metrics.PushBack("duration", doc.GetAllocator());
   doc.AddMember("metrics", metrics, doc.GetAllocator());
 
-  rj::StringBuffer buffer;
-  rj::Writer<rj::StringBuffer> writer(buffer);
-  // Traverse the DOM and generates Handler events
-  doc.Accept(writer);
-
-  std::string body(buffer.GetString(), buffer.GetSize());
-  return body;
+  return json_to_string(doc);
 }
 
 std::string encode_body(osrm::OSRMManyToManyRequest const* req) {
   auto doc = rj::Document{};
   doc.SetObject();
 
-  auto coordinates = rj::Value{rj::kArrayType};
-  /*
-  for (auto const& to : *req->waypoints()) {
-    coordinates.PushBack(encode_position(to, doc), doc.GetAllocator());
-  }
-   */
-  doc.AddMember("coordinates", coordinates, doc.GetAllocator());
-
-  rj::StringBuffer buffer;
-  rj::Writer<rj::StringBuffer> writer(buffer);
-  doc.Accept(
-      writer);  // Accept() traverses the DOM and generates Handler events
-
-  std::string body(buffer.GetString(), buffer.GetSize());
-  return body;
+  return json_to_string(doc);
 }
 
 template <typename Req>
@@ -196,12 +185,7 @@ std::string encode_body(osrm::OSRMViaRouteRequest const* req) {
   }
   doc.AddMember("coordinates", coordinates, doc.GetAllocator());
 
-  rj::StringBuffer buffer;
-  rj::Writer<rj::StringBuffer> writer(buffer);
-  doc.Accept(writer);// Accept() traverses the DOM and generates Handler events
-
-  std::string body(buffer.GetString(), buffer.GetSize());
-  return body;
+  return json_to_string(doc);
 }
 
 mm::msg_ptr openrouteservice::via(mm::msg_ptr const& msg) const {
