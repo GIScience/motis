@@ -42,55 +42,6 @@ void openrouteservice::init(motis::module::registry& reg) {
   reg.register_op("/osrm/via", [&](mm::msg_ptr const& msg) { return via(msg); }, {});
 }
 
-template <typename Req>
-mm::msg_ptr sources_to_targets(Req const* req, openrouteservice::impl* config) {
-  auto const timer = motis::logging::scoped_timer{"openrouteservice.matrix"};
-  //  auto& thor = config->get();
-  //
-  //  // Encode OSRMManyToManyRequest as valhalla request.
-  //  auto doc = j::Document{};
-  //  encode_request(req, doc);
-  //
-  //  // Decode request.
-  //  v::Api request;
-  //  v::from_json(doc, v::Options::sources_to_targets, request);
-  //  auto& options = *request.mutable_options();
-  //
-  //  // Get the costing method.
-  //  auto mode = v::sif::TravelMode::kMaxTravelMode;
-  //  auto const mode_costing = thor.factory_.CreateModeCosting(options, mode);
-  //
-  //  // Find path locations (loki) for sources and targets.
-  //  thor.loki_worker_.matrix(request);
-  //
-  //  // Run matrix algorithm.
-  //  auto const res = thor.matrix_.SourceToTarget(
-  //      options.sources(), options.targets(), *config->reader_, mode_costing,
-  //      mode, 4000000.0F);
-  //  thor.matrix_.clear();
-  //
-  //  // Encode OSRM response.
-  mm::message_creator fbb;
-  fbb.create_and_finish(
-      MsgContent_OSRMOneToManyResponse,
-      CreateOSRMOneToManyResponse(
-          fbb, fbb.CreateVectorOfStructs(std::vector<osrm::Cost>{}))
-          .Union());
-  return make_msg(fbb);
-}
-
-mm::msg_ptr openrouteservice::table(mm::msg_ptr const& msg) const {
-  using osrm::OSRMManyToManyRequest;
-  auto const req = motis_content(OSRMManyToManyRequest, msg);
-  return sources_to_targets(req, config.get());
-}
-
-mm::msg_ptr openrouteservice::one_to_many(mm::msg_ptr const& msg) const {
-  using osrm::OSRMOneToManyRequest;
-  auto const req = motis_content(OSRMOneToManyRequest, msg);
-  return sources_to_targets(req, config.get());
-}
-
 std::string_view translate_mode(std::string_view s) {
   switch (cista::hash(s)) {
     case cista::hash("foot"): return "foot-walking";
@@ -108,6 +59,130 @@ rj::Value encode_position(Position const* to, rj::Document& doc) {
   coord.PushBack(rj::Value{to->lat()}, allocator);
 
   return coord;
+}
+
+std::string encode_body(osrm::OSRMOneToManyRequest const* req) {
+  auto doc = rj::Document{};
+  doc.SetObject();
+
+  auto locations = rj::Value{rj::kArrayType};
+  auto sources = rj::Value{rj::kArrayType};
+  auto destinations = rj::Value{rj::kArrayType};
+
+  int index = 0;
+  locations.PushBack(encode_position(req->one(), doc), doc.GetAllocator());
+  sources.PushBack(index++, doc.GetAllocator());
+  for (auto const& to : *req->many()) {
+    locations.PushBack(encode_position(to, doc), doc.GetAllocator());
+    destinations.PushBack(index++, doc.GetAllocator());
+  }
+
+  doc.AddMember("locations", locations, doc.GetAllocator());
+  doc.AddMember("sources", sources, doc.GetAllocator());
+  doc.AddMember("destinations", destinations, doc.GetAllocator());
+
+  auto metrics = rj::Value{rj::kArrayType};
+  metrics.PushBack("distance", doc.GetAllocator());
+  metrics.PushBack("duration", doc.GetAllocator());
+  doc.AddMember("metrics", metrics, doc.GetAllocator());
+
+  rj::StringBuffer buffer;
+  rj::Writer<rj::StringBuffer> writer(buffer);
+  doc.Accept(
+      writer);  // Accept() traverses the DOM and generates Handler events
+
+  std::string body(buffer.GetString(), buffer.GetSize());
+  return body;
+}
+
+std::string encode_body(osrm::OSRMManyToManyRequest const* req) {
+  auto doc = rj::Document{};
+  doc.SetObject();
+
+  auto coordinates = rj::Value{rj::kArrayType};
+  /*
+  for (auto const& to : *req->waypoints()) {
+    coordinates.PushBack(encode_position(to, doc), doc.GetAllocator());
+  }
+   */
+  doc.AddMember("coordinates", coordinates, doc.GetAllocator());
+
+  rj::StringBuffer buffer;
+  rj::Writer<rj::StringBuffer> writer(buffer);
+  doc.Accept(
+      writer);  // Accept() traverses the DOM and generates Handler events
+
+  std::string body(buffer.GetString(), buffer.GetSize());
+  return body;
+}
+
+template <typename Req>
+mm::msg_ptr sources_to_targets(Req const* req, openrouteservice::impl* config) {
+  auto const timer = motis::logging::scoped_timer{"openrouteservice.matrix"};
+
+  // Encode OSRMOneToManyRequest as openrouteservice request
+  auto body = encode_body(req);
+
+  // Construct POST request
+  auto const profile = (std::string)translate_mode(req->profile()->view());
+  auto const url = config->url_ + "/matrix/" + profile;
+  auto request = nc::request(url, nc::request::POST);
+  request.headers["Authorization"] =
+      config->api_key_;  // required, otherwise "Authorization field missing"
+                         // error
+  request.headers["Content-Type"] =
+      "application/json; charset=utf-8";  // required, otherwise "Content-Type
+                                          // 'application/octet-stream' is not
+                                          // supported" error
+  request.body = body;
+
+  // Send request and parse the response as JSON
+  auto f = motis_http(request);  // motis_http(query);
+  auto v = f->val();
+  std::cout << "ORS response: " << v.body << std::endl;
+
+  rapidjson::Document doc;
+  if (doc.Parse(v.body.data(), v.body.size()).HasParseError()) {
+    doc.GetParseError();
+    throw utl::fail("ORS response: Bad JSON: {} at offset {}",
+                    rapidjson::GetParseError_En(doc.GetParseError()),
+                    doc.GetErrorOffset());
+  }
+
+  // Extract distances and durations
+  std::vector<double> distances;
+  for (const rapidjson::Value& distance : doc["distances"][0].GetArray()) {
+    distances.emplace_back(distance.GetDouble());
+  }
+  std::vector<double> durations;
+  for (const rapidjson::Value& duration : doc["durations"][0].GetArray()) {
+    durations.emplace_back(duration.GetDouble());
+  }
+
+  // Encode OSRM response.
+  std::vector<osrm::Cost> costs;
+  for (int i = 0; i < durations.size(); i++) {
+    costs.emplace_back(durations[i], distances[i]);
+  }
+
+  mm::message_creator fbb;
+  fbb.create_and_finish(
+      MsgContent_OSRMOneToManyResponse,
+      CreateOSRMOneToManyResponse(fbb, fbb.CreateVectorOfStructs(costs))
+          .Union());
+  return make_msg(fbb);
+}
+
+mm::msg_ptr openrouteservice::table(mm::msg_ptr const& msg) const {
+  using osrm::OSRMManyToManyRequest;
+  auto const req = motis_content(OSRMManyToManyRequest, msg);
+  return sources_to_targets(req, config.get());
+}
+
+mm::msg_ptr openrouteservice::one_to_many(mm::msg_ptr const& msg) const {
+  using osrm::OSRMOneToManyRequest;
+  auto const req = motis_content(OSRMOneToManyRequest, msg);
+  return sources_to_targets(req, config.get());
 }
 
 std::string encode_body(osrm::OSRMViaRouteRequest const* req) {
