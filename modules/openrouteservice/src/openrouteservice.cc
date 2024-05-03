@@ -8,10 +8,15 @@
 
 #include <rapidjson/document.h>
 #include <rapidjson/error/en.h>
+#include <rapidjson/writer.h>
+#include <rapidjson/rapidjson.h>
+#include <rapidjson/stringbuffer.h>
 #include "motis/module/context/motis_http_req.h"
 
 namespace mm = motis::module;
 namespace fs = std::filesystem;
+namespace nc = net::http::client;
+namespace rj = rapidjson;
 
 namespace motis::openrouteservice {
 
@@ -95,28 +100,53 @@ std::string_view translate_mode(std::string_view s) {
   }
 }
 
+rj::Value encode_position(Position const* to, rj::Document& doc) {
+  auto coord = rj::Value{rj::kArrayType};
+  rj::Document::AllocatorType& allocator = doc.GetAllocator();
+
+  coord.PushBack(to->lng(), allocator);
+  coord.PushBack(rj::Value{to->lat()}, allocator);
+
+  return coord;
+}
+
+std::string encode_body(osrm::OSRMViaRouteRequest const* req) {
+  auto doc = rj::Document{};
+  doc.SetObject();
+
+  auto coordinates = rj::Value{rj::kArrayType};
+  for (auto const& to : *req->waypoints()) {
+    coordinates.PushBack(encode_position(to, doc), doc.GetAllocator());
+  }
+  doc.AddMember("coordinates", coordinates, doc.GetAllocator());
+
+  rj::StringBuffer buffer;
+  rj::Writer<rj::StringBuffer> writer(buffer);
+  doc.Accept(writer);// Accept() traverses the DOM and generates Handler events
+
+  std::string body(buffer.GetString(), buffer.GetSize());
+  return body;
+}
+
 mm::msg_ptr openrouteservice::via(mm::msg_ptr const& msg) const {
   using osrm::OSRMViaRouteRequest;
   auto const req = motis_content(OSRMViaRouteRequest, msg);
 
-  auto const size = req->waypoints()->size();
-  auto const waypoints = *req->waypoints();
-  auto const start_lng = req->waypoints()->Get(0)->lng();
-  auto const start_lat = req->waypoints()->Get(0)->lat();
-  auto const end_lng = req->waypoints()->Get(size-1)->lng();
-  auto const end_lat = req->waypoints()->Get(size-1)->lat();
+  // Encode OSRMViaRouteRequest as openrouteservice request
+  auto body = encode_body(req);
 
-  auto const mode_str = (std::string) translate_mode(req->profile()->view());
+  // Construct POST request
+  auto const profile = (std::string) translate_mode(req->profile()->view());
+  auto const url = url_ + "/directions/" + profile + "/geojson";
+  auto request = nc::request(url, nc::request::POST);
+  request.headers["Authorization"] = api_key_;//required, otherwise "Authorization field missing" error
+  request.headers["Content-Type"] = "application/json; charset=utf-8";//required, otherwise "Content-Type 'application/octet-stream' is not supported" error
+  request.body = body;
 
-  auto const query =
-      url_ + "/directions/" + mode_str +
-      "?api_key=" + api_key_ +
-      "&start=" + std::to_string(start_lng) + ',' + std::to_string(start_lat) +
-      "&end=" + std::to_string(end_lng) + ',' + std::to_string(end_lat);
-
-  auto f = motis_http(query);
+  // Send request and parse the response as JSON
+  auto f = motis_http(request);//motis_http(query);
   auto v = f->val();
-  std::cout << "ORS reply: " << v.body;
+  std::cout << "ORS response: " << v.body << std::endl;
 
   rapidjson::Document doc;
   if (doc.Parse(v.body.data(), v.body.size()).HasParseError()) {
