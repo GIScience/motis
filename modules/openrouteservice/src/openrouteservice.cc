@@ -66,20 +66,21 @@ std::string encode_body(osrm::OSRMOneToManyRequest const* req) {
   doc.SetObject();
 
   auto locations = rj::Value{rj::kArrayType};
-  auto sources = rj::Value{rj::kArrayType};
-  auto destinations = rj::Value{rj::kArrayType};
+  auto one = rj::Value{rj::kArrayType};
+  auto many = rj::Value{rj::kArrayType};
 
   int index = 0;
   locations.PushBack(encode_position(req->one(), doc), doc.GetAllocator());
-  sources.PushBack(index++, doc.GetAllocator());
+  one.PushBack(index++, doc.GetAllocator());
   for (auto const& to : *req->many()) {
     locations.PushBack(encode_position(to, doc), doc.GetAllocator());
-    destinations.PushBack(index++, doc.GetAllocator());
+    many.PushBack(index++, doc.GetAllocator());
   }
 
   doc.AddMember("locations", locations, doc.GetAllocator());
-  doc.AddMember("sources", sources, doc.GetAllocator());
-  doc.AddMember("destinations", destinations, doc.GetAllocator());
+  bool forward = req->direction() == SearchDir_Forward;
+  doc.AddMember("sources", forward ? one : many, doc.GetAllocator());
+  doc.AddMember("destinations", forward ? many : one, doc.GetAllocator());
 
   auto metrics = rj::Value{rj::kArrayType};
   metrics.PushBack("distance", doc.GetAllocator());
@@ -88,8 +89,8 @@ std::string encode_body(osrm::OSRMOneToManyRequest const* req) {
 
   rj::StringBuffer buffer;
   rj::Writer<rj::StringBuffer> writer(buffer);
-  doc.Accept(
-      writer);  // Accept() traverses the DOM and generates Handler events
+  // Traverse the DOM and generates Handler events
+  doc.Accept(writer);
 
   std::string body(buffer.GetString(), buffer.GetSize());
   return body;
