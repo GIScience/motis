@@ -8,9 +8,9 @@
 
 #include <rapidjson/document.h>
 #include <rapidjson/error/en.h>
-#include <rapidjson/writer.h>
 #include <rapidjson/rapidjson.h>
 #include <rapidjson/stringbuffer.h>
+#include <rapidjson/writer.h>
 #include "motis/module/context/motis_http_req.h"
 
 namespace mm = motis::module;
@@ -37,9 +37,11 @@ void openrouteservice::init(motis::module::registry& reg) {
   reg.register_op("/osrm/table",
                   [&](mm::msg_ptr const& msg) { return table(msg); }, {});
 
-  reg.register_op("/osrm/one_to_many", [&](mm::msg_ptr const& msg) { return one_to_many(msg); }, {});
+  reg.register_op("/osrm/one_to_many",
+                  [&](mm::msg_ptr const& msg) { return one_to_many(msg); }, {});
 
-  reg.register_op("/osrm/via", [&](mm::msg_ptr const& msg) { return via(msg); }, {});
+  reg.register_op("/osrm/via", [&](mm::msg_ptr const& msg) { return via(msg); },
+                  {});
 }
 
 std::string_view translate_mode(std::string_view s) {
@@ -117,13 +119,8 @@ mm::msg_ptr sources_to_targets(Req const* req, openrouteservice::impl* config) {
   auto const profile = (std::string)translate_mode(req->profile()->view());
   auto const url = config->url_ + "/matrix/" + profile;
   auto request = nc::request(url, nc::request::POST);
-  request.headers["Authorization"] =
-      config->api_key_;  // required, otherwise "Authorization field missing"
-                         // error
-  request.headers["Content-Type"] =
-      "application/json; charset=utf-8";  // required, otherwise "Content-Type
-                                          // 'application/octet-stream' is not
-                                          // supported" error
+  request.headers["Authorization"] = config->api_key_;
+  request.headers["Content-Type"] = "application/json; charset=utf-8";
   request.body = body;
 
   // Send request and parse the response as JSON
@@ -196,15 +193,15 @@ mm::msg_ptr openrouteservice::via(mm::msg_ptr const& msg) const {
   auto body = encode_body(req);
 
   // Construct POST request
-  auto const profile = (std::string) translate_mode(req->profile()->view());
+  auto const profile = (std::string)translate_mode(req->profile()->view());
   auto const url = url_ + "/directions/" + profile + "/geojson";
   auto request = nc::request(url, nc::request::POST);
-  request.headers["Authorization"] = api_key_;//required, otherwise "Authorization field missing" error
-  request.headers["Content-Type"] = "application/json; charset=utf-8";//required, otherwise "Content-Type 'application/octet-stream' is not supported" error
+  request.headers["Authorization"] = api_key_;
+  request.headers["Content-Type"] = "application/json; charset=utf-8";
   request.body = body;
 
   // Send request and parse the response as JSON
-  auto f = motis_http(request);//motis_http(query);
+  auto f = motis_http(request);  // motis_http(query);
   auto v = f->val();
   std::cout << "ORS response: " << v.body << std::endl;
 
@@ -224,7 +221,8 @@ mm::msg_ptr openrouteservice::via(mm::msg_ptr const& msg) const {
 
   // Extract route geometry
   std::vector<double> coordinates;
-  for (const rapidjson::Value& coordinate_pair : feature["geometry"]["coordinates"].GetArray()) {
+  for (const rapidjson::Value& coordinate_pair :
+       feature["geometry"]["coordinates"].GetArray()) {
     coordinates.emplace_back(coordinate_pair[1].GetDouble());
     coordinates.emplace_back(coordinate_pair[0].GetDouble());
   }
@@ -234,9 +232,9 @@ mm::msg_ptr openrouteservice::via(mm::msg_ptr const& msg) const {
   fbb.create_and_finish(
       MsgContent_OSRMViaRouteResponse,
       osrm::CreateOSRMViaRouteResponse(
-          fbb, static_cast<int>(duration),
-          static_cast<double>(distance),
-          CreatePolyline(fbb, fbb.CreateVector(coordinates.data(), coordinates.size())))
+          fbb, static_cast<int>(duration), static_cast<double>(distance),
+          CreatePolyline(
+              fbb, fbb.CreateVector(coordinates.data(), coordinates.size())))
           .Union());
   return make_msg(fbb);
 }
