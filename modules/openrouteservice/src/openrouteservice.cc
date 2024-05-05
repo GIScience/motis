@@ -72,6 +72,18 @@ rj::Value encode_position(Position const* to, rj::Document& doc) {
   return coord;
 }
 
+void construct_body(rj::Document& doc, rj::Value& locations, rj::Value& sources,
+                    rj::Value& destinations) {
+  doc.AddMember("locations", locations, doc.GetAllocator());
+  doc.AddMember("sources", sources, doc.GetAllocator());
+  doc.AddMember("destinations", destinations, doc.GetAllocator());
+
+  auto metrics = rj::Value{rj::kArrayType};
+  metrics.PushBack("distance", doc.GetAllocator());
+  metrics.PushBack("duration", doc.GetAllocator());
+  doc.AddMember("metrics", metrics, doc.GetAllocator());
+}
+
 std::string encode_body(osrm::OSRMOneToManyRequest const* req) {
   auto doc = rj::Document{};
   doc.SetObject();
@@ -88,15 +100,11 @@ std::string encode_body(osrm::OSRMOneToManyRequest const* req) {
     many.PushBack(index++, doc.GetAllocator());
   }
 
-  doc.AddMember("locations", locations, doc.GetAllocator());
-  bool forward = req->direction() == SearchDir_Forward;
-  doc.AddMember("sources", forward ? one : many, doc.GetAllocator());
-  doc.AddMember("destinations", forward ? many : one, doc.GetAllocator());
-
-  auto metrics = rj::Value{rj::kArrayType};
-  metrics.PushBack("distance", doc.GetAllocator());
-  metrics.PushBack("duration", doc.GetAllocator());
-  doc.AddMember("metrics", metrics, doc.GetAllocator());
+  if (req->direction() == SearchDir_Forward) {
+    construct_body(doc, locations, one, many);
+  } else {
+    construct_body(doc, locations, many, one);
+  }
 
   return json_to_string(doc);
 }
@@ -104,6 +112,22 @@ std::string encode_body(osrm::OSRMOneToManyRequest const* req) {
 std::string encode_body(osrm::OSRMManyToManyRequest const* req) {
   auto doc = rj::Document{};
   doc.SetObject();
+
+  auto locations = rj::Value{rj::kArrayType};
+  auto sources = rj::Value{rj::kArrayType};
+  auto destinations = rj::Value{rj::kArrayType};
+
+  int index = 0;
+  for (auto const& from : *req->from()) {
+    locations.PushBack(encode_position(from, doc), doc.GetAllocator());
+    sources.PushBack(index++, doc.GetAllocator());
+  }
+  for (auto const& to : *req->to()) {
+    locations.PushBack(encode_position(to, doc), doc.GetAllocator());
+    destinations.PushBack(index++, doc.GetAllocator());
+  }
+
+  construct_body(doc, locations, sources, destinations);
 
   return json_to_string(doc);
 }
