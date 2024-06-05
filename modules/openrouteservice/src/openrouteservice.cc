@@ -42,6 +42,8 @@ void openrouteservice::init(motis::module::registry& reg) {
 
   reg.register_op("/osrm/via", [&](mm::msg_ptr const& msg) { return via(msg); },
                   {});
+  reg.register_op("/ppr/route",
+                  [&](mm::msg_ptr const& msg) { return ppr(msg); }, {});
 }
 
 std::string_view translate_mode(std::string_view s) {
@@ -270,6 +272,94 @@ mm::msg_ptr openrouteservice::via(mm::msg_ptr const& msg) const {
           CreatePolyline(
               fbb, fbb.CreateVector(coordinates.data(), coordinates.size())))
           .Union());
+  return make_msg(fbb);
+}
+
+mm::msg_ptr openrouteservice::ppr(mm::msg_ptr const& msg) const {
+  using osrm::OSRMOneToManyResponse;
+  using osrm::OSRMViaRouteResponse;
+  using ppr::FootRoutingRequest;
+  using ppr::FootRoutingResponse;
+
+  auto const req = motis_content(FootRoutingRequest, msg);
+  mm::message_creator fbb;
+  if (req->include_path()) {
+    fbb.create_and_finish(
+        MsgContent_FootRoutingResponse,
+        ppr::CreateFootRoutingResponse(
+            fbb,
+            fbb.CreateVector(utl::to_vec(
+                *req->destinations(),
+                [&](Position const* dest) {
+                  mm::message_creator req_fbb;
+                  auto const from_to = std::array<Position, 2>{
+                      // NOLINTNEXTLINE(clang-analyzer-core.NonNullParamChecker)
+                      req->search_direction() == SearchDir_Forward
+                          ? *req->start()
+                          : *dest,
+                      // NOLINTNEXTLINE(clang-analyzer-core.NonNullParamChecker)
+                      req->search_direction() == SearchDir_Forward
+                          ? *dest
+                          : *req->start()};
+                  req_fbb.create_and_finish(
+                      MsgContent_OSRMViaRouteRequest,
+                      osrm::CreateOSRMViaRouteRequest(
+                          req_fbb, req_fbb.CreateString("foot"),
+                          req_fbb.CreateVectorOfStructs(from_to.data(), 2U))
+                          .Union());
+                  auto const res_msg = via(make_msg(req_fbb));
+                  auto const res = motis_content(OSRMViaRouteResponse, res_msg);
+                  return ppr::CreateRoutes(
+                      fbb,
+                      fbb.CreateVector(std::vector{ppr::CreateRoute(
+                          fbb, res->distance(), res->time(), res->time(), 0.0,
+                          0U, 0.0, 0.0, req->start(), dest,
+                          fbb.CreateVector(
+                              std::vector<
+                                  flatbuffers::Offset<ppr::RouteStep>>{}),
+                          fbb.CreateVector(
+                              std::vector<flatbuffers::Offset<ppr::Edge>>{}),
+                          motis_copy_table(Polyline, fbb, res->polyline()), 0,
+                          0)}));
+                })))
+            .Union());
+  } else {
+    mm::message_creator req_fbb;
+    auto const start = *req->start();
+    auto const dests =
+        utl::to_vec(*req->destinations(), [](Position const* dest) {
+          return Position{dest->lat(), dest->lng()};
+        });
+    req_fbb.create_and_finish(
+        MsgContent_OSRMOneToManyRequest,
+        osrm::CreateOSRMOneToManyRequest(
+            req_fbb, req_fbb.CreateString("foot"), req->search_direction(),
+            &start, req_fbb.CreateVectorOfStructs(dests.data(), dests.size()))
+            .Union(),
+        "/osrm/one_to_many");
+    auto const res_msg = one_to_many(make_msg(req_fbb));
+    auto const res = motis_content(OSRMOneToManyResponse, res_msg);
+    fbb.create_and_finish(
+        MsgContent_FootRoutingResponse,
+        ppr::CreateFootRoutingResponse(
+            fbb,
+            fbb.CreateVector(utl::to_vec(
+                *res->costs(),
+                [&, i = 0](osrm::Cost const* cost) mutable {
+                  auto const vec = std::vector{ppr::CreateRoute(
+                      fbb, cost->distance(), cost->duration(), cost->duration(),
+                      0.0, 0U, 0.0, 0.0, req->start(),
+                      req->destinations()->Get(i++),
+                      fbb.CreateVector(
+                          std::vector<flatbuffers::Offset<ppr::RouteStep>>{}),
+                      fbb.CreateVector(
+                          std::vector<flatbuffers::Offset<ppr::Edge>>{}),
+                      CreatePolyline(fbb,
+                                     fbb.CreateVector(std::vector<double>{})))};
+                  return ppr::CreateRoutes(fbb, fbb.CreateVector(vec));
+                })))
+            .Union());
+  }
   return make_msg(fbb);
 }
 
