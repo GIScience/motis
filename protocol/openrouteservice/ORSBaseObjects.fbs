@@ -1,0 +1,19 @@
+namespace motis.openrouteservice;
+
+table Duration {
+  values: [double];
+}
+
+table Distance {
+  values: [double];
+}
+
+struct ReversePosition {
+  lng: double;
+  lat: double;
+}
+
+struct LocationSnap {
+  location: ReversePosition;
+  snapped_distance: double;
+}
