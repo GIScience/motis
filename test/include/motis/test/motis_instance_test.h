@@ -10,14 +10,12 @@
 
 #include "motis/core/access/time_access.h"
 #include "motis/bootstrap/motis_instance.h"
-#include "motis/loader/loader_options.h"
 
 namespace motis::test {
 
 template <typename Base>
 struct generic_motis_instance_test : public Base {
   explicit generic_motis_instance_test(
-      loader::loader_options const&,
       std::vector<std::string> const& modules = {},
       std::vector<std::string> const& modules_cmdline_opt = {});
 
@@ -38,11 +36,6 @@ struct generic_motis_instance_test : public Base {
 
   static std::function<module::msg_ptr(module::msg_ptr const&)> msg_sink(
       std::vector<module::msg_ptr>*);
-
-  ::motis::schedule const& sched() const;
-
-  std::time_t unix_time(int hhmm, int day_idx = 0,
-                        int timezone_offset = DEFAULT_TIMEZONE_OFFSET) const;
 
   template <typename Module>
   Module& get_module(std::string const& module_name) {

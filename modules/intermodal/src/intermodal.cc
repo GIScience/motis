@@ -44,7 +44,6 @@ intermodal::intermodal() : module("Intermodal Options", "intermodal") {
 intermodal::~intermodal() = default;
 
 void intermodal::reg_subc(motis::module::subc_reg& r) {
-  r.register_cmd("generate", "generate routing queries", eval::generate);
   r.register_cmd("compare", "print difference between results", eval::compare);
 }
 
@@ -464,7 +463,7 @@ msg_ptr intermodal::route(msg_ptr const& msg) {
 
   auto const mumo_stats_appender = [&](stats_category&& s) {
     std::lock_guard const guard(mumo_stats_mutex);
-    mumo_stats.emplace_back(s);
+    mumo_stats.emplace_back(std::move(s));
   };
 
   std::vector<ctx::future_ptr<ctx_data, void>> futures;
@@ -537,11 +536,12 @@ msg_ptr intermodal::route(msg_ptr const& msg) {
             mc, start.start_type_, start.start_, dest.station_,
             req->search_type(), req->search_dir(),
             mc.CreateVector(std::vector<Offset<Via>>{}), mc.CreateVector(edges),
-            true, true, true, 0, timeout_,
+            true, true, false, 0, timeout_,
             req->allowed_claszes() == nullptr
                 ? 0
                 : mc.CreateVector(req->allowed_claszes()->Data(),
-                                  req->allowed_claszes()->size()))
+                                  req->allowed_claszes()->size()),
+            req->max_transfers())
             .Union(),
         router);
 

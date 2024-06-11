@@ -340,14 +340,11 @@ void osr::import(mm::import_dispatcher& reg) {
         fs::create_directories(dir);
 
         if (mm::read_ini<import_state>(dir / "import.ini") != state) {
-          o::extract(state.path_.val(), dir);
+          o::extract(osm->path()->str(), dir);
           mm::write_ini(dir / "import.ini", state);
         }
 
         auto w = std::make_unique<o::ways>(dir, cista::mmap::protection::READ);
-        if (lock_) {
-          w->lock();
-        }
         auto l = std::make_unique<o::lookup>(*w);
         impl_ = std::make_unique<impl>(std::move(w), std::move(l));
 
