@@ -312,7 +312,7 @@ mm::msg_ptr openrouteservice::ppr(mm::msg_ptr const& msg) const {
                   return ppr::CreateRoutes(
                       fbb,
                       fbb.CreateVector(std::vector{ppr::CreateRoute(
-                          fbb, res->distance(), res->time(), res->time(), 60.0,
+                          fbb, res->distance(), res->time()/60.0, res->time()/60.0, 0.0,
                           0U, 0.0, 0.0, req->start(), dest,
                           fbb.CreateVector(
                               std::vector<
@@ -348,8 +348,8 @@ mm::msg_ptr openrouteservice::ppr(mm::msg_ptr const& msg) const {
                 [&, i = 0](osrm::Cost const* cost) mutable {
                   // divide cost by 60 to get time in minutes
                   auto const vec = std::vector{ppr::CreateRoute(
-                      fbb, cost->distance(), cost->duration(), cost->duration(),
-                      60.0, 0U, 0.0, 0.0, req->start(),
+                      fbb, cost->distance(), cost->duration()/60.0, cost->duration()/60.0,
+                      0.0, 0U, 0.0, 0.0, req->start(),
                       req->destinations()->Get(i++),
                       fbb.CreateVector(
                           std::vector<flatbuffers::Offset<ppr::RouteStep>>{}),
