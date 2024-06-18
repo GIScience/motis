@@ -149,10 +149,12 @@ mm::msg_ptr sources_to_targets(Req const* req, openrouteservice::impl* config) {
   request.headers["Content-Type"] = "application/json; charset=utf-8";
   request.body = body;
 
+  auto start = std::chrono::system_clock::now();
+
   // Send request and parse the response as JSON
   auto f = motis_http(request);  // motis_http(query);
   auto v = f->val();
-  std::cout << "ORS response: " << v.body << std::endl;
+  // std::cout << "ORS response: " << v.body << std::endl;
 
   rapidjson::Document doc;
   if (doc.Parse(v.body.data(), v.body.size()).HasParseError()) {
@@ -161,6 +163,12 @@ mm::msg_ptr sources_to_targets(Req const* req, openrouteservice::impl* config) {
                     rapidjson::GetParseError_En(doc.GetParseError()),
                     doc.GetErrorOffset());
   }
+
+  // variable to store the request time
+  auto end = std::chrono::system_clock::now();
+  auto elapsed = end - start;
+  // log request time
+  LOG(logging::info) << "ORS Matrix request time: " << elapsed.count() << " ms";
 
   // Extract distances and durations
   std::vector<double> distances;
@@ -182,7 +190,7 @@ mm::msg_ptr sources_to_targets(Req const* req, openrouteservice::impl* config) {
     throw utl::fail("Dimensions of distance/duration matrices don't match");
   }
 
-  // Encode OSRM response.
+  // Encode openrouteservice response.
   std::vector<osrm::Cost> costs;
   for (int i = 0; i < durations.size(); i++) {
     costs.emplace_back(durations[i], distances[i]);
