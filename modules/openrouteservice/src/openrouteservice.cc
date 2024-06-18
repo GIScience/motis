@@ -4,22 +4,19 @@
 #include <filesystem>
 
 #include "motis/core/common/logging.h"
-#include "motis/module/context/motis_http_req.h"
 #include "motis/module/event_collector.h"
-
-#include "utl/to_vec.h"
 
 #include <rapidjson/document.h>
 #include <rapidjson/error/en.h>
 #include <rapidjson/rapidjson.h>
 #include <rapidjson/stringbuffer.h>
 #include <rapidjson/writer.h>
+#include "motis/module/context/motis_http_req.h"
 
 namespace mm = motis::module;
 namespace fs = std::filesystem;
 namespace nc = net::http::client;
 namespace rj = rapidjson;
-namespace mp = motis::ppr;
 
 namespace motis::openrouteservice {
 
@@ -47,8 +44,6 @@ void openrouteservice::init(motis::module::registry& reg) {
                   {});
   reg.register_op("/ppr/route",
                   [&](mm::msg_ptr const& msg) { return ppr(msg); }, {});
-  reg.register_op("/ppr/profiles",
-                  [&](mm::msg_ptr const&) { return ppr_profiles(); }, {});
 }
 
 std::string_view translate_mode(std::string_view s) {
@@ -366,20 +361,6 @@ mm::msg_ptr openrouteservice::ppr(mm::msg_ptr const& msg) const {
                 })))
             .Union());
   }
-  return make_msg(fbb);
-}
-
-mm::msg_ptr openrouteservice::ppr_profiles() const {
-  mm::message_creator fbb;
-  std::map<std::string, double> profile{{"foot_ors", 5/3.6}};
-  auto profiles = utl::to_vec(profile, [&](auto const& e) {
-    return mp::CreateFootRoutingProfileInfo(fbb, fbb.CreateString(e.first),
-                                            e.second);
-  });
-  fbb.create_and_finish(MsgContent_FootRoutingProfilesResponse,
-                        CreateFootRoutingProfilesResponse(
-                            fbb, fbb.CreateVectorOfSortedTables(&profiles))
-                            .Union());
   return make_msg(fbb);
 }
 
