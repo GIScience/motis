@@ -171,9 +171,9 @@ mm::msg_ptr sources_to_targets(Req const* req, openrouteservice::impl* config) {
 
   // variable to store the request time
   auto ors_request_finished = std::chrono::system_clock::now();
-  auto ore_request_elapsed = ors_request_finished - ors_request_start;
+  auto ore_request_elapsed_seconds = std::chrono::duration_cast<std::chrono::seconds>(ors_request_finished - ors_request_start);
   // log request time
-  LOG(logging::info) << "ORS Matrix request time: " << ore_request_elapsed.count() << " ms";
+  LOG(logging::info) << "ORS Matrix request time: " << ore_request_elapsed_seconds.count() << " s";
 
   // Log the pure motis duration
   auto motis_request_start = std::chrono::system_clock::now();
@@ -210,9 +210,9 @@ mm::msg_ptr sources_to_targets(Req const* req, openrouteservice::impl* config) {
           .Union());
   // Measure motis time
   auto motis_request_finished = std::chrono::system_clock::now();
-  auto motis_request_elapsed = motis_request_finished - motis_request_start;
+  auto motis_request_elapsed_seconds = std::chrono::duration_cast<std::chrono::seconds>(motis_request_finished - motis_request_start);;
   // log motis time
-  LOG(logging::info) << "Motis processing time: " << motis_request_elapsed.count() << " ms";
+  LOG(logging::info) << "Motis processing time: " << motis_request_elapsed_seconds.count() << " s";
   // Log total time
   return make_msg(fbb);
 }
@@ -256,11 +256,18 @@ mm::msg_ptr openrouteservice::via(mm::msg_ptr const& msg) const {
   request.headers["Authorization"] = api_key_;
   request.headers["Content-Type"] = "application/json; charset=utf-8";
   request.body = body;
+  // variable to store the request time
+  auto ors_request_start = std::chrono::system_clock::now();
 
   // Send request and parse the response as JSON
   auto f = motis_http(request);  // motis_http(query);
   auto v = f->val();
-  std::cout << "ORS response: " << v.body << std::endl;
+  auto ors_request_finished = std::chrono::system_clock::now();
+  auto ore_request_elapsed_seconds =
+      std::chrono::duration_cast<std::chrono::seconds>(ors_request_finished -
+                                                       ors_request_start);
+  // log request time
+  LOG(logging::info) << "ORS 'VIA' request time: " << ore_request_elapsed_seconds.count() << " s";
 
   rapidjson::Document doc;
   if (doc.Parse(v.body.data(), v.body.size()).HasParseError()) {
