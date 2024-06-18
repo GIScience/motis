@@ -154,7 +154,7 @@ mm::msg_ptr sources_to_targets(Req const* req, openrouteservice::impl* config) {
   request.headers["Content-Type"] = "application/json; charset=utf-8";
   request.body = body;
 
-  auto start = std::chrono::system_clock::now();
+  auto ors_request_start = std::chrono::system_clock::now();
 
   // Send request and parse the response as JSON
   auto f = motis_http(request);  // motis_http(query);
@@ -170,11 +170,13 @@ mm::msg_ptr sources_to_targets(Req const* req, openrouteservice::impl* config) {
   }
 
   // variable to store the request time
-  auto end = std::chrono::system_clock::now();
-  auto elapsed = end - start;
+  auto ors_request_finished = std::chrono::system_clock::now();
+  auto ore_request_elapsed = ors_request_finished - ors_request_start;
   // log request time
-  LOG(logging::info) << "ORS Matrix request time: " << elapsed.count() << " ms";
+  LOG(logging::info) << "ORS Matrix request time: " << ore_request_elapsed.count() << " ms";
 
+  // Log the pure motis duration
+  auto motis_request_start = std::chrono::system_clock::now();
   // Extract distances and durations
   std::vector<double> distances;
   std::vector<double> durations;
@@ -206,6 +208,12 @@ mm::msg_ptr sources_to_targets(Req const* req, openrouteservice::impl* config) {
       MsgContent_OSRMOneToManyResponse,
       CreateOSRMOneToManyResponse(fbb, fbb.CreateVectorOfStructs(costs))
           .Union());
+  // Measure motis time
+  auto motis_request_finished = std::chrono::system_clock::now();
+  auto motis_request_elapsed = motis_request_finished - motis_request_start;
+  // log motis time
+  LOG(logging::info) << "Motis processing time: " << motis_request_elapsed.count() << " ms";
+  // Log total time
   return make_msg(fbb);
 }
 
