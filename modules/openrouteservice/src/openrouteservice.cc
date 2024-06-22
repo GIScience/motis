@@ -180,14 +180,18 @@ mm::msg_ptr sources_to_targets(Req const* req, openrouteservice::impl* config) {
 
   // Check if v.status_code is != 200 if the length of the request body "locations" is 1
   if (v.status_code != 200) {
+    // Request doc
+    rapidjson::Document doc_request;
+    doc_request.Parse(request.body.data(), request.body.size());
+    const rapidjson::Value& locations = doc_request["locations"];
     // Error log the request body
     LOG(logging::warn) << ">>ORS error<<";
     LOG(logging::warn) << "Request status code: " << v.status_code;
     LOG(logging::warn) << "Request url: " << url;
     LOG(logging::warn) << "Respone body: " << v.body;
-    LOG(logging::warn) << "Respone body parse size: " << doc.Parse(request.body)['locations'].Size();
+    LOG(logging::warn) << "Request body parse size: " << locations.GetArray().Size();
     LOG(logging::warn) << "Request body: " << body;
-    if (doc.Parse(request.body)['locations'].Size() == 1) {
+    if (locations.GetArray().Size() == 1) {
       LOG(logging::warn) << "Manually emplacing 0 for distance and duration";
       // emplace back distances and durations with 0
       distances.emplace_back(0);
