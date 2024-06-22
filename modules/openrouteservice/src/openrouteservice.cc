@@ -168,50 +168,62 @@ mm::msg_ptr sources_to_targets(Req const* req, openrouteservice::impl* config) {
                     rapidjson::GetParseError_En(doc.GetParseError()),
                     doc.GetErrorOffset());
   }
-  // If status code not OK, throw an error
-  if (v.status_code != 200) {
-    // Error log the request body
-    LOG(logging::error) << ">>ORS error<<";
-    LOG(logging::error) << "Request status code: " << v.status_code;
-    LOG(logging::error) << "Request url: " << url;
-    LOG(logging::error) << "Respone body: " << v.body;
-    LOG(logging::error) << "Request body: " << body;
-    throw utl::fail("ORS response: Bad status code: {}", v.status_code);
-  }
 
-  // variable to store the request time
+  // variable Lto store the request time
   auto ors_request_finished = std::chrono::system_clock::now();
   auto ore_request_elapsed_seconds = std::chrono::duration_cast<std::chrono::seconds>(ors_request_finished - ors_request_start);
   // log request time
   LOG(logging::info) << "ORS Matrix request time: " << ore_request_elapsed_seconds.count() << " s";
 
-  // Log the pure motis duration
-  auto motis_request_start = std::chrono::system_clock::now();
-  // Extract distances and durations
   std::vector<double> distances;
   std::vector<double> durations;
-  if (doc["distances"].Size() == doc["durations"].Size()) {
-    for (rj::SizeType i = 0; i < doc["distances"].Size(); i++) {
-      if (doc["distances"][i].Size() == doc["durations"][i].Size()) {
-        for (const rj::Value& distance : doc["distances"][i].GetArray()) {
-          distances.emplace_back(distance.GetDouble());
-        }
-        for (const rj::Value& duration : doc["durations"][i].GetArray()) {
-          durations.emplace_back(duration.GetDouble());
-        }
-      } else {
-        throw utl::fail("Dimensions of distance/duration matrices don't match");
-      }
+
+  // Check if v.status_code is != 200 if the length of the request body "locations" is 1
+  if (v.status_code != 200) {
+    // Error log the request body
+    LOG(logging::warn) << ">>ORS error<<";
+    LOG(logging::warn) << "Request status code: " << v.status_code;
+    LOG(logging::warn) << "Request url: " << url;
+    LOG(logging::warn) << "Respone body: " << v.body;
+    LOG(logging::warn) << "Respone body parse size: " << doc.Parse(request.body)['locations'].Size();
+    LOG(logging::warn) << "Request body: " << body;
+    if (doc.Parse(request.body)['locations'].Size() == 1) {
+      LOG(logging::warn) << "Manually emplacing 0 for distance and duration";
+      // emplace back distances and durations with 0
+      distances.emplace_back(0);
+      durations.emplace_back(0);
+    } else {
+      throw utl::fail("ORS response: Bad status code: {}", v.status_code);
     }
   } else {
-    throw utl::fail("Dimensions of distance/duration matrices don't match");
+    // Extract distances and durations
+    if (doc["distances"].Size() == doc["durations"].Size()) {
+      for (rj::SizeType i = 0; i < doc["distances"].Size(); i++) {
+        if (doc["distances"][i].Size() == doc["durations"][i].Size()) {
+          for (const rj::Value& distance : doc["distances"][i].GetArray()) {
+            distances.emplace_back(distance.GetDouble());
+          }
+          for (const rj::Value& duration : doc["durations"][i].GetArray()) {
+            durations.emplace_back(duration.GetDouble());
+          }
+        } else {
+          throw utl::fail("Dimensions of distance/duration matrices don't match");
+        }
+      }
+    } else {
+      throw utl::fail("Dimensions of distance/duration matrices don't match");
+    }
+
   }
+
 
   // Encode openrouteservice response.
   std::vector<osrm::Cost> costs;
   for (int i = 0; i < durations.size(); i++) {
     costs.emplace_back(durations[i], distances[i]);
   }
+  // Log the pure motis duration
+  auto motis_request_start = std::chrono::system_clock::now();
 
   mm::message_creator fbb;
   fbb.create_and_finish(
