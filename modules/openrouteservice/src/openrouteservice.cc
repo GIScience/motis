@@ -194,8 +194,8 @@ mm::msg_ptr sources_to_targets(Req const* req, openrouteservice::impl* config) {
     if (locations.GetArray().Size() == 1) {
       LOG(logging::warn) << "Manually emplacing 0 for distance and duration";
       // emplace back distances and durations with 0
-      distances.emplace_back(0);
-      durations.emplace_back(0);
+      distances.emplace_back(0.0);
+      durations.emplace_back(0.0);
     } else {
       throw utl::fail("ORS response: Bad status code: {}", v.status_code);
     }
@@ -239,7 +239,6 @@ mm::msg_ptr sources_to_targets(Req const* req, openrouteservice::impl* config) {
   auto motis_request_elapsed_seconds = std::chrono::duration_cast<std::chrono::seconds>(motis_request_finished - motis_request_start);;
   // log motis time
   LOG(logging::info) << "Motis processing time: " << motis_request_elapsed_seconds.count() << " s";
-  // Log total time
   return make_msg(fbb);
 }
 
