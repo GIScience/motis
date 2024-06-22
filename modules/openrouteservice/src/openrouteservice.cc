@@ -175,11 +175,8 @@ mm::msg_ptr sources_to_targets(Req const* req, openrouteservice::impl* config) {
   // log request time
   LOG(logging::info) << "ORS Matrix request time: " << ore_request_elapsed_seconds.count() << " s";
 
-  std::vector<double> distances;
-  std::vector<double> durations;
-
   // Check if v.status_code is != 200 if the length of the request body "locations" is 1
-  if (v.status_code != 200) {
+  if (v.status_code == 200) {
     // Request doc
     rapidjson::Document doc_request;
     doc_request.Parse(request.body.data(), request.body.size());
@@ -191,33 +188,35 @@ mm::msg_ptr sources_to_targets(Req const* req, openrouteservice::impl* config) {
     LOG(logging::warn) << "Respone body: " << v.body;
     LOG(logging::warn) << "Request body parse size: " << locations.GetArray().Size();
     LOG(logging::warn) << "Request body: " << body;
-    if (locations.GetArray().Size() == 1) {
-      LOG(logging::warn) << "Manually emplacing 0 for distance and duration";
-      // emplace back distances and durations with 0
-      distances.emplace_back(0.0);
-      durations.emplace_back(0.0);
+    if (locations.GetArray().Size() > 1) {
+      const std::basic_string json = R"({"durations":[[0]],"distances":[[0]]})";
+      LOG(logging::warn) << "Fake response for one location " << json;
+      doc.Parse(json);
     } else {
       throw utl::fail("ORS response: Bad status code: {}", v.status_code);
     }
-  } else {
-    // Extract distances and durations
-    if (doc["distances"].Size() == doc["durations"].Size()) {
-      for (rj::SizeType i = 0; i < doc["distances"].Size(); i++) {
-        if (doc["distances"][i].Size() == doc["durations"][i].Size()) {
-          for (const rj::Value& distance : doc["distances"][i].GetArray()) {
-            distances.emplace_back(distance.GetDouble());
-          }
-          for (const rj::Value& duration : doc["durations"][i].GetArray()) {
-            durations.emplace_back(duration.GetDouble());
-          }
-        } else {
-          throw utl::fail("Dimensions of distance/duration matrices don't match");
-        }
-      }
-    } else {
-      throw utl::fail("Dimensions of distance/duration matrices don't match");
-    }
+  }
 
+
+  std::vector<double> distances;
+  std::vector<double> durations;
+
+  // Extract distances and durations
+  if (doc["distances"].Size() == doc["durations"].Size()) {
+    for (rj::SizeType i = 0; i < doc["distances"].Size(); i++) {
+      if (doc["distances"][i].Size() == doc["durations"][i].Size()) {
+        for (const rj::Value& distance : doc["distances"][i].GetArray()) {
+          distances.emplace_back(distance.GetDouble());
+        }
+        for (const rj::Value& duration : doc["durations"][i].GetArray()) {
+          durations.emplace_back(duration.GetDouble());
+        }
+      } else {
+        throw utl::fail("Dimensions of distance/duration matrices don't match");
+      }
+    }
+  } else {
+    throw utl::fail("Dimensions of distance/duration matrices don't match");
   }
 
 
