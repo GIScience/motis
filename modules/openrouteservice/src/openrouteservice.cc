@@ -179,16 +179,11 @@ mm::msg_ptr sources_to_targets(Req const* req, openrouteservice::impl* config) {
   std::vector<osrm::Cost> costs;
   // Check if v.status_code is != 200 if the length of the request body "locations" is 1
   if (v.status_code != 200) {
-    // Request doc
-    rapidjson::Document doc_request;
-    doc_request.Parse(request.body.data(), request.body.size());
-    const rapidjson::Value& locations = doc_request["locations"];
     // Error log the request body
     LOG(logging::warn) << ">>ORS error<<";
     LOG(logging::warn) << "Request status code: " << v.status_code;
     LOG(logging::warn) << "Request url: " << url;
     LOG(logging::warn) << "Respone body: " << v.body;
-    LOG(logging::warn) << "Request body parse size: " << locations.GetArray().Size();
     LOG(logging::warn) << "Request body: " << body;
     LOG(logging::warn) << "Return empty result to not crash the motis http response";
     LOG(logging::warn) << ">>ORS error<<";
@@ -293,20 +288,35 @@ mm::msg_ptr openrouteservice::via(mm::msg_ptr const& msg) const {
                     rapidjson::GetParseError_En(doc.GetParseError()),
                     doc.GetErrorOffset());
   }
-  const rapidjson::Value& feature = doc["features"][0];
 
-  // Get totals
-  const rapidjson::Value& summary = feature["properties"]["summary"];
-  double duration = summary["duration"].GetDouble();
-  double distance = summary["distance"].GetDouble();
-
-  // Extract route geometry
   std::vector<double> coordinates;
-  for (const rapidjson::Value& coordinate_pair :
-       feature["geometry"]["coordinates"].GetArray()) {
-    coordinates.emplace_back(coordinate_pair[1].GetDouble());
-    coordinates.emplace_back(coordinate_pair[0].GetDouble());
+  double duration;
+  double distance;
+  // Check if v.status_code is != 200
+  if (v.status_code != 200) {
+      // Error log the request body
+    LOG(logging::warn) << ">>ORS error VIA<<";
+    LOG(logging::warn) << "Request status code: " << v.status_code;
+    LOG(logging::warn) << "Request url: " << url;
+    LOG(logging::warn) << "Respone body: " << v.body;
+    LOG(logging::warn) << "Request body: " << body;
+  } else {
+    const rapidjson::Value& feature = doc["features"][0];
+
+    // Get totals
+    const rapidjson::Value& summary = feature["properties"]["summary"];
+    duration = summary["duration"].GetDouble();
+    distance = summary["distance"].GetDouble();
+
+    // Extract route geometry
+    for (const rapidjson::Value& coordinate_pair :
+         feature["geometry"]["coordinates"].GetArray()) {
+      coordinates.emplace_back(coordinate_pair[1].GetDouble());
+      coordinates.emplace_back(coordinate_pair[0].GetDouble());
+         }
   }
+
+
 
   // Encode OSRM response
   mm::message_creator fbb;
