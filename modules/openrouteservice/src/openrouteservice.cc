@@ -188,15 +188,8 @@ mm::msg_ptr sources_to_targets(Req const* req, openrouteservice::impl* config) {
     LOG(logging::warn) << "Respone body: " << v.body;
     LOG(logging::warn) << "Request body parse size: " << locations.GetArray().Size();
     LOG(logging::warn) << "Request body: " << body;
-    if (locations.GetArray().Size() == 1) {
-      const std::basic_string json = R"({"durations":[[0]],"distances":[[0]]})";
-      LOG(logging::warn) << "Fake response for one location " << json;
-      doc.Parse(json);
-    } else {
-      throw utl::fail("ORS response: Bad status code: {}", v.status_code);
-    }
+    throw utl::fail("ORS response: Bad status code: {}", v.status_code);
   }
-
 
   std::vector<double> distances;
   std::vector<double> durations;
