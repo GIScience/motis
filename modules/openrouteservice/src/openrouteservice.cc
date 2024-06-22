@@ -190,6 +190,8 @@ mm::msg_ptr sources_to_targets(Req const* req, openrouteservice::impl* config) {
     LOG(logging::warn) << "Respone body: " << v.body;
     LOG(logging::warn) << "Request body parse size: " << locations.GetArray().Size();
     LOG(logging::warn) << "Request body: " << body;
+    LOG(logging::warn) << "Return empty result to not crash the motis http response";
+    LOG(logging::warn) << ">>ORS error<<";
     //throw utl::fail("ORS response: Bad status code: {}", v.status_code);
   } else {
     // Extract distances and durations
