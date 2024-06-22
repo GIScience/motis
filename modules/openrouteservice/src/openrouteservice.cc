@@ -176,7 +176,7 @@ mm::msg_ptr sources_to_targets(Req const* req, openrouteservice::impl* config) {
   LOG(logging::info) << "ORS Matrix request time: " << ore_request_elapsed_seconds.count() << " s";
 
   // Check if v.status_code is != 200 if the length of the request body "locations" is 1
-  if (v.status_code == 200) {
+  if (v.status_code != 200) {
     // Request doc
     rapidjson::Document doc_request;
     doc_request.Parse(request.body.data(), request.body.size());
@@ -188,7 +188,7 @@ mm::msg_ptr sources_to_targets(Req const* req, openrouteservice::impl* config) {
     LOG(logging::warn) << "Respone body: " << v.body;
     LOG(logging::warn) << "Request body parse size: " << locations.GetArray().Size();
     LOG(logging::warn) << "Request body: " << body;
-    if (locations.GetArray().Size() > 1) {
+    if (locations.GetArray().Size() == 1) {
       const std::basic_string json = R"({"durations":[[0]],"distances":[[0]]})";
       LOG(logging::warn) << "Fake response for one location " << json;
       doc.Parse(json);
