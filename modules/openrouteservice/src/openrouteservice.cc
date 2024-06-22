@@ -168,6 +168,15 @@ mm::msg_ptr sources_to_targets(Req const* req, openrouteservice::impl* config) {
                     rapidjson::GetParseError_En(doc.GetParseError()),
                     doc.GetErrorOffset());
   }
+  // If status code not OK, throw an error
+  if (v.status_code != 200) {
+    // Error log the request body
+    LOG(logging::error) << ">>ORS error<<";
+    LOG(logging::error) << "Request status code: " << v.status_code;
+    LOG(logging::error) << "Request url: " << url;
+    LOG(logging::error) << "Request body: " << body;
+    throw utl::fail("ORS response: Bad status code: {}", v.status_code);
+  }
 
   // variable to store the request time
   auto ors_request_finished = std::chrono::system_clock::now();
